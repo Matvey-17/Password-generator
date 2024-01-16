@@ -11,22 +11,20 @@ from random import choice
 
 from hashlib import md5
 
+import string
+
 from api_token import API_TOKEN
 
-digits = '0123456789'
-uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-lowercase = 'abcdefghijklmnopqrstuvwxyz'
-punctuation = '!#$%&*+-=?@^_'
-ally = digits + uppercase + lowercase + punctuation
+ally = string.digits + string.ascii_uppercase + string.ascii_lowercase + string.punctuation
 
 
-def generator_password(len_password, password):
-    password += choice(uppercase)
+def generator_password(len_password, password=''):
+    password += choice(string.ascii_uppercase)
     for _ in range(len_password - 1):
         password += choice(ally)
-    if '0123456789' not in password:
+    if not (any(digit in password for digit in string.digits)):
         index_digit = random.randint(0, len_password)
-        digit = random.choice(digits)
+        digit = random.choice(string.digits)
         password = list(password)
         password.pop(index_digit)
         password.insert(index_digit, digit)
@@ -60,9 +58,9 @@ class Db:
             db.commit()
             try:
                 cursor.execute(f"INSERT INTO password (id_tg) VALUES ({self.chat_id})")
-                db.commit()
             except sqlite3.IntegrityError:
                 cursor.execute(f"UPDATE password SET id_tg = {self.chat_id} WHERE id_tg = {self.chat_id}")
+            finally:
                 db.commit()
 
     def insert_password(self, password):
@@ -86,7 +84,7 @@ def start(message: telebot.types.Message):
     bot.send_message(message.chat.id, 'Привет! Я помогу тебе сгенерировать пароль 🔑', reply_markup=markup)
 
 
-@bot.callback_query_handler(func=lambda call: call.data == 'ready')
+@bot.callback_query_handler(func=lambda call: call.data in ['ready', 'new_password'])
 def callback_1(call: telebot.types.CallbackQuery):
     bot.set_state(call.from_user.id, MyState.len_password, call.message.chat.id)
 
@@ -100,7 +98,7 @@ def generator(message: telebot.types.Message):
         bt_password = telebot.types.InlineKeyboardButton('Сгенерировать новый пароль', callback_data='new_password')
         markup.add(bt_password)
 
-        password = generator_password(int(message.text), '')
+        password = generator_password(int(message.text))
 
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['password'] = password
@@ -113,11 +111,6 @@ def generator(message: telebot.types.Message):
         bot.delete_state(message.from_user.id, message.chat.id)
     else:
         bot.send_message(message.chat.id, 'Необходимо ввести целое число (длина пароля не меньше 8 символов) ❌')
-
-
-@bot.callback_query_handler(func=lambda call: call.data == 'new_password')
-def callback_2(call):
-    callback_1(call)
 
 
 @bot.message_handler(content_types=['text'])
