@@ -120,6 +120,5 @@ def error_message(message: telebot.types.Message):
 
 if __name__ == '__main__':
     bot.add_custom_filter(custom_filters.StateFilter(bot))
-    bot.add_custom_filter(custom_filters.IsDigitFilter())
 
     bot.infinity_polling()
