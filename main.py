@@ -1,36 +1,11 @@
-import random
-
 import telebot
 from telebot import custom_filters
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
 
-import sqlite3
-
-from random import choice
-
-from hashlib import md5
-
-import string
-
 from api_token import API_TOKEN
-
-ally = string.digits + string.ascii_uppercase + string.ascii_lowercase + string.punctuation
-
-
-def generator_password(len_password, password=''):
-    password += choice(string.ascii_uppercase)
-    for _ in range(len_password - 1):
-        password += choice(ally)
-    if not (any(digit in password for digit in string.digits)):
-        index_digit = random.randint(0, len_password)
-        digit = random.choice(string.digits)
-        password = list(password)
-        password.pop(index_digit)
-        password.insert(index_digit, digit)
-        password = ''.join(password)
-    return password
-
+from DB import Db
+from password_generator import generator_password
 
 state_storage = StateMemoryStorage()
 
@@ -39,37 +14,6 @@ bot = telebot.TeleBot(API_TOKEN, state_storage=state_storage)
 
 class MyState(StatesGroup):
     len_password = State()
-    password = State()
-
-
-class Db:
-
-    def __init__(self, chat_id):
-        self.chat_id = chat_id
-
-    def create(self):
-        with sqlite3.connect('Passwords.db') as db:
-            cursor = db.cursor()
-            cursor.execute("""CREATE TABLE IF NOT EXISTS password(
-            ig INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_tg INTEGER UNIQUE,
-            password TEXT UNIQUE
-            )""")
-            db.commit()
-            try:
-                cursor.execute(f"INSERT INTO password (id_tg) VALUES ({self.chat_id})")
-            except sqlite3.IntegrityError:
-                cursor.execute(f"UPDATE password SET id_tg = {self.chat_id} WHERE id_tg = {self.chat_id}")
-            finally:
-                db.commit()
-
-    def insert_password(self, password):
-        password = md5(password.encode())
-        with sqlite3.connect('Passwords.db') as db:
-            cursor = db.cursor()
-            cursor.execute(
-                f"UPDATE password SET password = '{password.hexdigest()}' WHERE id_tg = {self.chat_id}")
-            db.commit()
 
 
 @bot.message_handler(commands=['start'])
@@ -120,5 +64,4 @@ def error_message(message: telebot.types.Message):
 
 if __name__ == '__main__':
     bot.add_custom_filter(custom_filters.StateFilter(bot))
-
     bot.infinity_polling()
